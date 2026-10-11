@@ -16,6 +16,8 @@
 .DS_Store
 /.idea/
 /target-device
+/target-rg35xxsp
+/target-rg35xxsp-sdcard
 /target-verify
 /dist-device
 

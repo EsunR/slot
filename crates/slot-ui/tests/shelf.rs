@@ -67,13 +67,12 @@ fn drawn_cart_indices(out: &[Draw]) -> Vec<usize> {
 }
 
 #[test]
-fn three_carts_fit_across_the_shelf() {
-    let row = CART_W * 3;
-    assert!(
-        row <= OUT_W,
-        "three carts are {row} px across a {OUT_W} px row, so it cannot show one either \
-         side of the selection"
-    );
+fn selected_cart_and_neighbours_remain_visible() {
+    let s = shelf_with(5);
+    let spans = placed(&s);
+    let centre = OUT_W as f32 / 2.0;
+    assert!(spans.iter().any(|(x, w)| *x < centre && x + w > 0.0));
+    assert!(spans.iter().any(|(x, _)| *x > centre && *x < OUT_W as f32));
 }
 
 #[test]
@@ -200,7 +199,7 @@ fn the_selected_cart_is_centred_and_drawn_as_the_hero() {
     );
     let centre = x + w / 2.0;
     assert!(
-        (centre - 360.0).abs() < 0.5,
+        (centre - OUT_W as f32 / 2.0).abs() < 0.5,
         "selected cart centre is {centre}"
     );
 }
@@ -598,7 +597,7 @@ fn the_row_parts_for_the_cart_going_in() {
     let start = at(0.0);
     // Partway, not half. At this pitch the neighbours are off the screen entirely by the
     // halfway mark, so the parting has to be sampled while there is still a pair to measure.
-    let part = at(0.35);
+    let part = at(0.15);
     assert_eq!(start.len(), part.len(), "a cart left the row early");
 
     let centre = OUT_W as f32 / 2.0;

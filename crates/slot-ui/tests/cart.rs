@@ -1,7 +1,8 @@
 use slot_store::{scan, System};
 use slot_ui::{
     cart_face, cart_placeholder, cart_shadow, clean_label, label_colour, label_panel, label_text,
-    silhouette, size_for, CART_H, CART_W, FACE_H, FACE_W, LABEL_H, LABEL_W, LABEL_X, LABEL_Y, OUT_W,
+    silhouette, size_for, CART_H, CART_W, FACE_H, FACE_W, LABEL_H, LABEL_W, LABEL_X, LABEL_Y,
+    OUT_W,
 };
 use tempfile::TempDir;
 
@@ -184,18 +185,19 @@ fn the_label_is_wide_and_sits_low() {
 /// invented rather than the cartridge that was traced.
 #[test]
 fn the_body_is_narrower_than_its_grip_ears() {
-    let m = silhouette(CART_W, CART_H);
-    let solid = |x: u32, y: u32| m[(y * CART_W + x) as usize] > 128;
-    let width_at = |y: u32| (0..CART_W).filter(|&x| solid(x, y)).count();
+    // Masks are cached per system at face resolution, as they are when drawing a cart.
+    let m = silhouette(System::Gba, FACE_W, FACE_H);
+    let solid = |x: u32, y: u32| m[(y * FACE_W + x) as usize] > 128;
+    let width_at = |y: u32| (0..FACE_W).filter(|&x| solid(x, y)).count();
 
-    let ears = width_at(CART_H / 12);
-    let body = width_at(CART_H / 2);
+    let ears = width_at(FACE_H / 12);
+    let body = width_at(FACE_H / 2);
     assert!(
         ears > body,
         "top spans {ears}px and the body {body}px: the grip ears are missing"
     );
     assert!(
-        ears - body >= 3,
+        ears - body >= (3 * FACE_W / CART_W) as usize,
         "the ears stick out by only {}px, which will not read at all",
         ears - body
     );
@@ -314,8 +316,8 @@ fn the_cart_shadow_is_the_cart_in_black() {
     let s = cart_shadow(size_for(System::Gba), System::Gba);
     // Same resolution as the face it backs, because it is drawn into the same quad.
     assert_eq!((s.w, s.h), (FACE_W, FACE_H));
-    let mask = silhouette(FACE_W, FACE_H);
-    for (px, cover) in s.rgba.chunks_exact(4).zip(&mask) {
+    let mask = silhouette(System::Gba, FACE_W, FACE_H);
+    for (px, cover) in s.rgba.chunks_exact(4).zip(mask) {
         assert_eq!(&px[..3], &[0, 0, 0], "the shadow is not black");
         assert_eq!(px[3], *cover, "the shadow is not the cart's shape");
     }

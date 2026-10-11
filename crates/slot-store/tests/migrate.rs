@@ -14,6 +14,7 @@ fn bare_state(root: &std::path::Path, stem: &str) {
     std::fs::write(dir.join("resume.state"), b"resume").unwrap();
 }
 
+#[cfg(unix)]
 fn set_mode(dir: &std::path::Path, mode: u32) {
     use std::os::unix::fs::PermissionsExt;
     std::fs::set_permissions(dir, std::fs::Permissions::from_mode(mode)).expect("chmod");
@@ -22,6 +23,7 @@ fn set_mode(dir: &std::path::Path, mode: u32) {
 /// Root ignores the permission bits `set_mode` relies on to make a directory unwritable, so
 /// a CI container running as root would pass the rename-failure test below without ever
 /// exercising the failure it exists to catch.
+#[cfg(unix)]
 fn running_as_root() -> bool {
     #[cfg(unix)]
     {
@@ -51,7 +53,7 @@ fn a_pre_migration_card_moves_under_mgba() {
     );
     // And the ring can see them, which is the only reason to move them at all.
     assert_eq!(
-        StateRing::new(d.path(), Core::Mgba, "Emerald")
+        StateRing::legacy(d.path(), Core::Mgba, "Emerald")
             .list()
             .unwrap()
             .len(),
@@ -211,6 +213,7 @@ fn mgba_as_a_plain_file_fails_soft_and_leaves_the_source_alone() {
 /// leaves `create_dir_all` untouched and exercises the `rename` leg on its own: the exact
 /// leg Task 3's per-entry isolation exists to cover, and the one this suite had not reached.
 #[test]
+#[cfg(unix)]
 fn a_read_only_mgba_directory_fails_the_rename_leg_softly() {
     if running_as_root() {
         eprintln!("running as root, where permission bits do not block a rename: skipping");

@@ -102,14 +102,14 @@ fn has_hint(p: &Polaroids, out: &[Draw], key: &str) -> bool {
 }
 
 #[test]
-fn the_screenshot_fills_the_screen_at_exactly_3x() {
+fn the_screenshot_covers_the_screen() {
     let p = switcher_with(3);
     let out = draw(&p);
     let photo = *quads(&out).first().expect("no screenshot drawn");
     assert_eq!((photo.w, photo.h), (OUT_W as f32, OUT_H as f32));
     assert_eq!((photo.x, photo.y), (0.0, 0.0));
-    assert_eq!(OUT_W / PHOTO_W, 3);
-    assert_eq!(OUT_H / PHOTO_H, 3);
+    assert_eq!(PHOTO_W, 240);
+    assert_eq!(PHOTO_H, 160);
 }
 
 /// The paused game is still underneath. A screenshot that did not cover it would read as the

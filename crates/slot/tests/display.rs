@@ -6,8 +6,7 @@
 mod common;
 
 use common::tmp_root_with_carts;
-use slot::app::MASK_STATES;
-use slot::root::{display_modes, write_display_modes};
+use slot::root::{display_modes, write_display_modes, MASK_STATES};
 
 #[test]
 fn the_whole_ring_survives_the_file() {
@@ -36,11 +35,23 @@ fn a_missing_or_older_file_still_reads() {
     let d = tmp_root_with_carts(&["Emerald"]);
     let file = d.path().join("System/display.txt");
     let _ = std::fs::remove_file(&file);
-    assert_eq!(display_modes(d.path()), (2, [0, 0, 0]), "the built-in default");
+    assert_eq!(
+        display_modes(d.path()),
+        (2, [0, 0, 0]),
+        "the built-in default"
+    );
 
     std::fs::write(&file, "1 4").unwrap();
-    assert_eq!(display_modes(d.path()), (1, [4, 4, 4]), "one colour, every machine");
+    assert_eq!(
+        display_modes(d.path()),
+        (1, [4, 4, 4]),
+        "one colour, every machine"
+    );
 
     std::fs::write(&file, "not a number").unwrap();
-    assert_eq!(display_modes(d.path()), (2, [0, 0, 0]), "and it does not panic on nonsense");
+    assert_eq!(
+        display_modes(d.path()),
+        (2, [0, 0, 0]),
+        "and it does not panic on nonsense"
+    );
 }

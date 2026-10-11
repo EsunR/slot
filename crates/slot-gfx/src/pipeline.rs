@@ -150,6 +150,8 @@ impl GamePass {
                 System::Gba.src_w() as f32,
                 System::Gba.src_h() as f32,
             );
+            let (mask_x, mask_y) = System::Gba.mask_tiles();
+            gl::Uniform2f(crate::gl::uniform_location(prog, "u_mask_tiles"), mask_x, mask_y);
         }
         let mut pass = GamePass {
             prog,
@@ -182,15 +184,20 @@ impl GamePass {
             return;
         }
         self.active = system;
-        // The mask tiles once per source pixel, so a different frame size is a different
-        // tiling count and nothing more: the 3x3 table is the same table, the filter is the
-        // same filter, and no part of either is written against a resolution.
+        // GB/GBC grid cells follow source pixels. The aperture mask follows
+        // physical 3-pixel cells, including the fractional-scale GBA viewport.
         unsafe {
             gl::UseProgram(self.prog);
             gl::Uniform2f(
                 crate::gl::uniform_location(self.prog, "u_src"),
                 system.src_w() as f32,
                 system.src_h() as f32,
+            );
+            let (mask_x, mask_y) = system.mask_tiles();
+            gl::Uniform2f(
+                crate::gl::uniform_location(self.prog, "u_mask_tiles"),
+                mask_x,
+                mask_y,
             );
         }
     }

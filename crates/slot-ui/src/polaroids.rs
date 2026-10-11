@@ -188,8 +188,8 @@ impl Polaroids {
     fn draw_photo(&self, out: &mut Vec<Draw>) {
         let (w, h) = (OUT_W as f32, OUT_H as f32);
         out.push(match self.faces.get(self.index) {
-            // Through the game pass, not over it: the shot is a still of the same panel at
-            // the same 3x, so it carries the same mask the live frame does.
+            // Through the game pass: the still uses the same aspect-preserving geometry and
+            // mask as the live frame on either panel.
             Some(tex) => Draw::Shot { tex: *tex },
             // Opaque, and the same colour a missing thumbnail decodes to. The paused game is
             // still underneath, and a screenshot it showed through would read as live.

@@ -1,14 +1,11 @@
 //! One machine's picture geometry: how big a frame its core hands us, and where on the
 //! panel that frame lands.
 //!
-//! This used to be two constants, because there used to be one machine. The panel is 720x480
-//! and the GBA is 240x160, and 240 lands in 720 exactly three times — which is why no other
-//! scale is ever asked about, and why the LCD3x table can be a 3x3 mask sampled once per
-//! source pixel rather than a resample.
+//! The default panel is 720x480, where GBA's 240x160 frame fits at exactly 3x. Smaller
+//! panels fit the game frame within their bounds while keeping its aspect ratio.
 //!
-//! Game Boy is 160x144 and lands in the panel three times too, but 160x144 is short of the
-//! panel in both directions, so it does not fill it: it gets a 480x432 window centred in the
-//! frame. That window is what a bezel goes around.
+//! Game Boy is 160x144 and fits at 3x on both panels: a 480x432 window centred in the frame.
+//! That window is what a bezel goes around.
 //!
 //! Game Boy and Game Boy Color get one row between them rather than one each: their frames
 //! are the same 160x144, so they want the same texture and the same window, and a second copy
@@ -16,9 +13,7 @@
 
 use crate::surface::{OUT_H, OUT_W};
 
-/// The only scale that exists. One source pixel is exactly SCALE x SCALE panel pixels,
-/// nearest neighbour, and it is what collapses LCD3x to a 3x3 mask tiled once per source
-/// pixel.
+/// Maximum game scale. The default panel reaches exactly 3x; smaller panels may use less.
 pub const SCALE: u32 = 3;
 
 /// The GBA's own frame. The pair this module used to be.
@@ -38,9 +33,15 @@ pub enum System {
 }
 
 impl System {
-    /// The frame the core hands us, in pixels. This is also how many times the 3x3 mask
-    /// tiles across the window: one RGB triad per source pixel, exactly — which is why a
-    /// different source size needs no change to the mask itself.
+    /// Number of 3-pixel mask cells across the physical game viewport. At 3x this
+    /// equals the source size; the RG35XXSP GBA viewport is fractional-scale, so
+    /// screen-space cells keep the LCD pattern a regular size on the panel.
+    pub fn mask_tiles(self) -> (f32, f32) {
+        let (_, _, w, h) = self.screen_base();
+        (w / 3.0, h / 3.0)
+    }
+
+    /// The frame the core hands us, in pixels. The 3x3 mask tiles once per source pixel.
     pub fn src_w(self) -> u32 {
         match self {
             System::Gba => GBA_SRC_W,
@@ -57,13 +58,20 @@ impl System {
 
     /// The rect the picture fills with the screen fully up, in offscreen pixels.
     ///
-    /// Centred, which is all it takes: the GBA's own window comes out as the whole frame
-    /// (240 lands in 720 three times and 160 in 480 three times, so the margins are zero),
-    /// and Game Boy's comes out as 480x432 sat in the middle. One formula, and the machine
-    /// that fills the panel is the case that falls out of it rather than a special case.
+    /// The default 720x480 panel displays both systems at exactly 3x. On RG35XXSP the GBA
+    /// picture uses the viewport specified by its supplied bezel (`default.cfg`): 640x426 at
+    /// the top left. The PNG covers the outer eight pixels of that viewport. GB remains
+    /// centred at 480x432.
     pub fn screen_base(self) -> (f32, f32, f32, f32) {
-        let w = self.src_w() as f32 * SCALE as f32;
-        let h = self.src_h() as f32 * SCALE as f32;
+        #[cfg(feature = "rg35xxsp")]
+        if self == System::Gba {
+            return (0.0, 0.0, 640.0, 426.0);
+        }
+        let scale = (OUT_W as f32 / self.src_w() as f32)
+            .min(OUT_H as f32 / self.src_h() as f32)
+            .min(SCALE as f32);
+        let w = self.src_w() as f32 * scale;
+        let h = self.src_h() as f32 * scale;
         ((OUT_W as f32 - w) / 2.0, (OUT_H as f32 - h) / 2.0, w, h)
     }
 }

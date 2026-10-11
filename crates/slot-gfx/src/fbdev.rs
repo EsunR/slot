@@ -8,9 +8,8 @@ use libloading::Library;
 
 use crate::surface::{GfxError, Surface};
 
-/// What the panel is if the framebuffer will not say. The RG35XXSP is 640x480 and the RG SP
-/// is expected to be, but the surface is sized from the driver wherever it answers.
-const FALLBACK_PANEL: (u32, u32) = (720, 480);
+/// What the panel is if the framebuffer will not say. Prefer the size reported by the driver.
+const FALLBACK_PANEL: (u32, u32) = (crate::surface::OUT_W, crate::surface::OUT_H);
 
 const FB0: &str = "/sys/class/graphics/fb0";
 

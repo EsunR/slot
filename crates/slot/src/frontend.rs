@@ -955,6 +955,7 @@ impl Frontend {
             &mut self.switcher,
         );
         sync_cheat_faces(self.session.app_mut(), compositor);
+        sync_remap_faces(self.session.app_mut(), compositor);
         sync_palette_names(
             self.session.app_mut(),
             compositor,
@@ -1269,6 +1270,24 @@ fn sync_palette_name(
             app.set_palette_name_face(Some((id, w, h)));
         }
         None => app.set_palette_name_face(None),
+    }
+}
+
+/// Rebuild only when the editor's page or mapping changes, releasing the old textures.
+fn sync_remap_faces(app: &mut App, compositor: &mut Compositor) {
+    let lines = app.remap_menu_lines();
+    if app.remap_face_lines() == lines {
+        return;
+    }
+    let faces = lines
+        .iter()
+        .map(|line| {
+            let f = menu_face(line);
+            (compositor.create_texture(f.w, f.h, &f.rgba), f.w, f.h)
+        })
+        .collect();
+    for (tex, _, _) in app.set_remap_faces(lines, faces) {
+        compositor.release_texture(tex);
     }
 }
 

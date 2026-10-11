@@ -15,6 +15,7 @@ pub mod link_start;
 pub mod palettes;
 pub mod persist;
 pub mod resample;
+mod remap_menu;
 pub mod rewind;
 pub mod root;
 pub mod session;

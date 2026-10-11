@@ -65,8 +65,8 @@ pub fn set_mode(m: Mode) {
 /// what it is, which is why the opening stays *darker* than the housing even though the
 /// housing has gone light.
 ///
-/// A warm grey rather than a white: the scrim over the wallpaper lands at about `#e8e5e0`, and
-/// plastic the same tone as the ground behind it stops being an object on it.
+/// Neutral greys give the light mode a white, Switch-like ground while preserving the steps
+/// between the case, recess and opening.
 ///
 /// `theme.txt` addresses the dark case and only the dark case: it is the file a card ships to
 /// say what colour its machine is, and the light palette is the *same* machine seen the other
@@ -74,10 +74,10 @@ pub fn set_mode(m: Mode) {
 /// between the two — it is the only thing that holds the card's theme — and this is only the
 /// light half of that answer.
 pub const LIGHT_CASE: Theme = Theme {
-    housing: [0xcf, 0xc8, 0xbb],
-    recess: [0xbf, 0xb8, 0xaa],
-    opening: [0xb0, 0xa8, 0x9a],
-    edge: [0xf6, 0xf3, 0xec],
+    housing: [0xe8, 0xe8, 0xe8],
+    recess: [0xd5, 0xd5, 0xd5],
+    opening: [0xc0, 0xc0, 0xc0],
+    edge: [0xff, 0xff, 0xff],
 };
 
 // ---------------------------------------------------------------------------------------
@@ -88,7 +88,7 @@ pub const LIGHT_CASE: Theme = Theme {
 pub fn ink() -> [u8; 3] {
     match mode() {
         Mode::Dark => [0xf5, 0xf2, 0xef],
-        Mode::Light => [0x1c, 0x1b, 0x1f],
+        Mode::Light => [0x22, 0x22, 0x22],
     }
 }
 
@@ -109,7 +109,7 @@ pub fn ink_f() -> [f32; 4] {
 pub fn panel_ink() -> [u8; 3] {
     match mode() {
         Mode::Dark => [0x1a, 0x19, 0x17],
-        Mode::Light => [0xf4, 0xf1, 0xea],
+        Mode::Light => [0xff, 0xff, 0xff],
     }
 }
 
@@ -119,7 +119,7 @@ pub fn panel_ink() -> [u8; 3] {
 pub fn halo() -> [u8; 3] {
     match mode() {
         Mode::Dark => [0x08, 0x08, 0x0a],
-        Mode::Light => [0xf2, 0xef, 0xe8],
+        Mode::Light => [0xff, 0xff, 0xff],
     }
 }
 
@@ -132,7 +132,7 @@ pub fn halo() -> [u8; 3] {
 pub fn plate() -> [f32; 4] {
     match mode() {
         Mode::Dark => [0.0, 0.0, 0.0, 0.72],
-        Mode::Light => [0.81, 0.78, 0.73, 0.82],
+        Mode::Light => [0.91, 0.91, 0.91, 0.86],
     }
 }
 
@@ -142,7 +142,7 @@ pub fn plate() -> [f32; 4] {
 pub fn panel() -> [f32; 4] {
     match mode() {
         Mode::Dark => [0.06, 0.06, 0.07, 1.0],
-        Mode::Light => [0.88, 0.86, 0.82, 1.0],
+        Mode::Light => [0.95, 0.95, 0.95, 1.0],
     }
 }
 
@@ -156,16 +156,16 @@ pub fn panel() -> [f32; 4] {
 pub fn keycap() -> [u8; 3] {
     match mode() {
         Mode::Dark => [0xb4, 0xb0, 0xa8],
-        Mode::Light => [0x8a, 0x85, 0x7c],
+        Mode::Light => [0x80, 0x80, 0x80],
     }
 }
 
 /// The flat the screen is when the card carries no wallpaper. The wallpaper-facing twin of
-/// this is `scrim`, and the two are the same colour seen two ways: black and paper.
+/// this is `scrim`, and the two are the same colour seen two ways: black and white.
 pub fn ground() -> [u8; 3] {
     match mode() {
         Mode::Dark => [0x00, 0x00, 0x00],
-        Mode::Light => [0xe6, 0xe3, 0xdd],
+        Mode::Light => [0xff, 0xff, 0xff],
     }
 }
 
@@ -198,7 +198,7 @@ fn mix(a: [u8; 3], b: [u8; 3], t: f32) -> [u8; 3] {
 pub fn ridge_ink() -> [u8; 3] {
     match mode() {
         Mode::Dark => [0xd8, 0xd4, 0xcc],
-        Mode::Light => [0x6b, 0x64, 0x5b],
+        Mode::Light => [0x68, 0x68, 0x68],
     }
 }
 
@@ -243,8 +243,8 @@ mod tests {
         assert_eq!(panel_ink(), [0x1a, 0x19, 0x17]);
 
         set_mode(Mode::Light);
-        assert_eq!(ink(), [0x1c, 0x1b, 0x1f]);
-        assert_eq!(panel_ink(), [0xf4, 0xf1, 0xea]);
+        assert_eq!(ink(), [0x22, 0x22, 0x22]);
+        assert_eq!(panel_ink(), [0xff, 0xff, 0xff]);
 
         // The one property that has to hold in both: a cap's letter is never the same colour
         // as the cap, or the key is a blank square.

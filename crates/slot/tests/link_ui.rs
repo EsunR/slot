@@ -109,10 +109,8 @@ fn the_link_row_is_absent_under_mgba_not_merely_refused() {
             .any(|r| r.contains(lang::LINK_ROW)),
         "an mGBA cart was shown a row whose fix is four steps away on the shelf"
     );
-    // Link is the only row this menu has today, so under mGBA there is nothing to show and
-    // an empty panel over a paused game is worse than no panel at all. When a second row
-    // lands, this becomes an assertion about that row instead.
-    assert!(!app.game_menu_open(), "an empty menu came up over the game");
+    assert!(app.game_menu_open());
+    assert_eq!(app.game_menu_rows(), vec![lang::REMAP_ROW]);
 }
 
 #[test]

@@ -1,13 +1,16 @@
-use slot_gfx::{
-    blue_light_gain, lcd3x_mask, Compositor, Draw, HeadlessSurface, OUT_H, OUT_W, SRC_H, SRC_W,
-};
+use slot_gfx::blue_light_gain;
+#[cfg(target_os = "macos")]
+use slot_gfx::{lcd3x_mask, Compositor, Draw, HeadlessSurface, OUT_H, OUT_W, SRC_H, SRC_W};
+#[cfg(target_os = "macos")]
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
 /// `gl::load_with` writes global function pointers, so two GL tests must not overlap.
+#[cfg(target_os = "macos")]
 static GL: Mutex<()> = Mutex::new(());
 
 /// A GL context is not available everywhere. Skip rather than fail, the same way the mGBA
 /// test skips a missing dylib.
+#[cfg(target_os = "macos")]
 fn compositor() -> Option<(MutexGuard<'static, ()>, HeadlessSurface, Compositor)> {
     let guard = GL.lock().unwrap_or_else(PoisonError::into_inner);
     let surface = HeadlessSurface::new().ok()?;
@@ -15,12 +18,14 @@ fn compositor() -> Option<(MutexGuard<'static, ()>, HeadlessSurface, Compositor)
     Some((guard, surface, compositor))
 }
 
+#[cfg(target_os = "macos")]
 fn px(frame: &[u8], x: usize, y: usize) -> [u8; 3] {
     let o = (y * OUT_W as usize + x) * 4;
     [frame[o], frame[o + 1], frame[o + 2]]
 }
 
 /// A screenshot as the switcher uploads one: RGBA at the source size, not the core's BGRA.
+#[cfg(target_os = "macos")]
 fn flat_shot(rgb: [u8; 3]) -> Vec<u8> {
     std::iter::repeat_n([rgb[0], rgb[1], rgb[2], 255], (SRC_W * SRC_H) as usize)
         .flatten()
@@ -28,6 +33,7 @@ fn flat_shot(rgb: [u8; 3]) -> Vec<u8> {
 }
 
 #[test]
+#[cfg(target_os = "macos")]
 fn game_pass_multiplies_every_output_cell_by_the_lcd3x_mask() {
     let Some((_g, _s, mut c)) = compositor() else {
         return;
@@ -55,6 +61,7 @@ fn game_pass_multiplies_every_output_cell_by_the_lcd3x_mask() {
 /// The FBO is stored bottom up and the source is top down, so a missing flip anywhere in
 /// upload, draw or readback shows up as a frame that is upside down or mirrored.
 #[test]
+#[cfg(target_os = "macos")]
 fn the_game_frame_keeps_its_orientation_from_upload_to_readback() {
     let Some((_g, _s, mut c)) = compositor() else {
         return;
@@ -91,6 +98,7 @@ fn the_game_frame_keeps_its_orientation_from_upload_to_readback() {
 /// The power on is a uniform on the game pass, so only a readback says whether the picture
 /// is genuinely being squeezed and flashed rather than the curve merely being computed.
 #[test]
+#[cfg(target_os = "macos")]
 fn the_picture_strikes_as_a_band_at_the_centre_before_it_fills_the_frame() {
     let Some((_g, _s, mut c)) = compositor() else {
         return;
@@ -131,6 +139,7 @@ fn the_picture_strikes_as_a_band_at_the_centre_before_it_fills_the_frame() {
 /// directions matter: what is listed before the marker is covered by the picture, and what
 /// is listed after it is drawn over the picture.
 #[test]
+#[cfg(target_os = "macos")]
 fn the_game_marker_draws_the_picture_where_it_sits_in_the_list() {
     let Some((_g, _s, mut c)) = compositor() else {
         return;
@@ -165,6 +174,7 @@ fn the_game_marker_draws_the_picture_where_it_sits_in_the_list() {
 /// The switcher shows a still of the same panel, at the same 3x, so it has to carry the same
 /// 3x3 cell structure. Blitted flat it reads as a different machine to the game behind it.
 #[test]
+#[cfg(target_os = "macos")]
 fn a_saved_shot_is_drawn_through_the_lcd_pass() {
     let Some((_g, _s, mut c)) = compositor() else {
         return;
@@ -202,6 +212,7 @@ fn a_saved_shot_is_drawn_through_the_lcd_pass() {
 }
 
 #[test]
+#[cfg(target_os = "macos")]
 fn draw_list_rects_land_in_top_left_pixel_space() {
     let Some((_g, _s, mut c)) = compositor() else {
         return;
@@ -226,6 +237,7 @@ fn draw_list_rects_land_in_top_left_pixel_space() {
 /// The switcher reuses one texture per ring slot instead of minting a fresh set on every
 /// opening. A replace that quietly kept the old contents would show the previous ring.
 #[test]
+#[cfg(target_os = "macos")]
 fn a_replaced_texture_draws_its_new_contents() {
     let Some((_g, _s, mut c)) = compositor() else {
         return;
@@ -267,6 +279,7 @@ fn blue_light_warms_monotonically_and_clamps_at_the_last_step() {
 /// shader every sprite goes through, so this is what proves the rest of the chrome did not
 /// move by a single value.
 #[test]
+#[cfg(target_os = "macos")]
 fn an_unturned_image_draws_exactly_as_a_plain_one() {
     let Some((_g, _s, mut c)) = compositor() else {
         return;
@@ -305,6 +318,7 @@ fn an_unturned_image_draws_exactly_as_a_plain_one() {
 /// Positive is clockwise on the panel, since y runs down. A quarter turn about the centre
 /// takes the texture's top left corner to the top right.
 #[test]
+#[cfg(target_os = "macos")]
 fn a_quarter_turn_takes_the_top_left_corner_to_the_top_right() {
     let Some((_g, _s, mut c)) = compositor() else {
         return;

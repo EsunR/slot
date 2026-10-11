@@ -132,6 +132,19 @@ button keeps its usual job in the menus. Names: `up`, `down`, `left`, `right`, `
 `l1`, `r1`, `l2`, `r2`, `start`, `select`, plus `menu`, `volup`, `voldown`, `power` and `lid`,
 which reach no GBA button of their own but can be pointed at one.
 
+**Per-game remapping.** While playing, press `SELECT` + `MENU` and choose **Button mapping**
+(**改键** in the Chinese build). Up/down selects a physical key; left/right changes the game
+button it sends, including **Disabled**. The list scrolls across three pages. Select **Save for
+this game** and press `A` to save and resume immediately; `B` cancels the draft. **Restore card
+defaults** removes this game's override and resumes with `System/remap.txt` (or the built-in
+layout if that file is absent). Save failures keep the draft open for retry.
+
+Layouts live in `System/Remaps/<GBA|GB|GBC>/<ROM stem>.txt`, so they survive reboot and stay
+separate across games and machines. Games without an override use the global layout. The editor
+covers directions, A/B/X/Y, L1/R1, START and SELECT. Menu navigation and frontend shortcuts use
+the physical keys; L2/R2 remain the rewind/fast-forward controls. The menu is unavailable during
+an active link session, just like the other menus that pause gameplay.
+
 **Name tags, kept or stripped.** `System/labels.txt` — `strip_tags on` (the default) drops the
 bracketed facts a dump carries in its filename; `strip_tags off` keeps them, which is what you want
 for a pack that marks editions with `[中]` / `[日]` / `[英]` suffixes. The ring files carts by their
@@ -388,6 +401,7 @@ audio.txt          stable / balanced / strict, written when SELECT+VOL steps it.
 mask.txt           the card's own 3x3 panel mask, if it ships one.
 cc.txt             the card's own colour-correction matrix, for the NOCOLOR mode.
 remap.txt          physical button remapping, one "<physical> = <game>" per line.
+Remaps/<machine>/<stem>.txt  per-game button mapping, saved by the in-game editor.
 Cheats/<stem>.txt  one cheat code per line; `#` starts a comment and blank lines are ignored.
                    A multi-line GameShark or Action Replay code is joined with `+` on one
                    line. Text after the first `#` is the code's on-device label and never
@@ -539,6 +553,8 @@ Its source is in the same zip under `source/`, and a newer `adb.exe` placed besi
 takes precedence over the bundled one.
 
 ## Building
+
+Windows 桌面端的编译、运行与调试说明见 [WINDOWS_DEVELOPMENT.md](WINDOWS_DEVELOPMENT.md)。
 
 The device build is one cargo invocation, against an aarch64 Linux target:
 

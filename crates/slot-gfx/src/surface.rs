@@ -1,6 +1,9 @@
 use std::ffi::c_void;
 use std::fmt;
 
+#[cfg(feature = "rg35xxsp")]
+pub const OUT_W: u32 = 640;
+#[cfg(not(feature = "rg35xxsp"))]
 pub const OUT_W: u32 = 720;
 pub const OUT_H: u32 = 480;
 
@@ -30,7 +33,7 @@ pub trait Surface {
     fn proc_address(&self, name: &str) -> *const c_void;
 }
 
-/// Largest whole multiple of the 720x480 output that fits in the window, floored at 1.
+/// Largest whole multiple of the selected output size that fits in the window, floored at 1.
 /// A fractional blit would resample the LCD3x mask and destroy its per pixel phase, so
 /// undersized windows crop rather than shrink.
 pub fn fit_scale(win_w: u32, win_h: u32) -> u32 {

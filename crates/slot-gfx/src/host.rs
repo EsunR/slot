@@ -1,4 +1,4 @@
-use crate::surface::{GfxError, Surface};
+use crate::surface::{GfxError, Surface, OUT_H, OUT_W};
 use glutin::config::{Config, ConfigTemplateBuilder, GlConfig};
 use glutin::context::{
     ContextApi, ContextAttributesBuilder, GlProfile, NotCurrentGlContext, PossiblyCurrentContext,
@@ -13,9 +13,9 @@ use std::num::NonZeroU32;
 use winit::event_loop::ActiveEventLoop;
 use winit::window::Window;
 
-/// Two times the 720x480 output, the size the device panel maps to on a desktop.
-const DEFAULT_W: u32 = 1440;
-const DEFAULT_H: u32 = 960;
+/// Two times the selected output size for the desktop preview.
+const DEFAULT_W: u32 = OUT_W * 2;
+const DEFAULT_H: u32 = OUT_H * 2;
 
 pub struct HostSurface {
     window: Window,

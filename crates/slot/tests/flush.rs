@@ -24,7 +24,7 @@ fn power_press_edge_flushes_immediately_not_on_release() {
     let d = tmp_root_with_carts(&["Emerald"]);
     let mut a = app_playing_in(d.path(), "Emerald");
     a.apply(Action::PowerTap);
-    let r = StateRing::new(d.path(), Core::Mgba, "Emerald");
+    let r = StateRing::new(d.path(), Core::Mgba, slot_store::System::Gba, "Emerald");
     assert!(
         r.read_resume().unwrap().is_some(),
         "flush must happen on press, a held power button is a hardware cutoff"
@@ -36,15 +36,19 @@ fn autosave_fires_at_sixty_seconds_and_not_before() {
     let d = tmp_root_with_carts(&["Emerald"]);
     let mut a = app_playing_in(d.path(), "Emerald");
     a.tick_ms(59_999);
-    assert!(StateRing::new(d.path(), Core::Mgba, "Emerald")
-        .read_resume()
-        .unwrap()
-        .is_none());
+    assert!(
+        StateRing::new(d.path(), Core::Mgba, slot_store::System::Gba, "Emerald")
+            .read_resume()
+            .unwrap()
+            .is_none()
+    );
     a.tick_ms(60_000);
-    assert!(StateRing::new(d.path(), Core::Mgba, "Emerald")
-        .read_resume()
-        .unwrap()
-        .is_some());
+    assert!(
+        StateRing::new(d.path(), Core::Mgba, slot_store::System::Gba, "Emerald")
+            .read_resume()
+            .unwrap()
+            .is_some()
+    );
 }
 
 #[test]
@@ -52,10 +56,12 @@ fn battery_critical_flushes_and_powers_off() {
     let d = tmp_root_with_carts(&["Emerald"]);
     let mut a = app_playing_in(d.path(), "Emerald");
     a.on_battery(unknown(3));
-    assert!(StateRing::new(d.path(), Core::Mgba, "Emerald")
-        .read_resume()
-        .unwrap()
-        .is_some());
+    assert!(
+        StateRing::new(d.path(), Core::Mgba, slot_store::System::Gba, "Emerald")
+            .read_resume()
+            .unwrap()
+            .is_some()
+    );
     assert!(a.powering_off());
 }
 
@@ -88,7 +94,7 @@ fn opening_the_menu_flushes_and_the_choice_powers_off() {
         "the hold asks the question, it does not answer it"
     );
     assert!(
-        StateRing::new(d.path(), Core::Mgba, "Emerald")
+        StateRing::new(d.path(), Core::Mgba, slot_store::System::Gba, "Emerald")
             .read_resume()
             .unwrap()
             .is_some(),
@@ -129,7 +135,7 @@ fn an_idle_doze_times_out_into_a_power_off() {
     a.on_doze_timeout();
     assert!(a.powering_off(), "the timeout powers off");
     assert!(
-        StateRing::new(d.path(), Core::Mgba, "Emerald")
+        StateRing::new(d.path(), Core::Mgba, slot_store::System::Gba, "Emerald")
             .read_resume()
             .unwrap()
             .is_some(),
@@ -144,10 +150,12 @@ fn a_battery_above_the_threshold_keeps_playing() {
     let mut a = app_playing_in(d.path(), "Emerald");
     a.on_battery(unknown(20));
     assert!(!a.powering_off());
-    assert!(StateRing::new(d.path(), Core::Mgba, "Emerald")
-        .read_resume()
-        .unwrap()
-        .is_none());
+    assert!(
+        StateRing::new(d.path(), Core::Mgba, slot_store::System::Gba, "Emerald")
+            .read_resume()
+            .unwrap()
+            .is_none()
+    );
 }
 
 #[test]
@@ -249,10 +257,12 @@ fn a_critical_battery_that_is_discharging_still_powers_off() {
     let mut a = app_playing_in(d.path(), "Emerald");
     a.on_battery(at(3, Charge::Discharging));
     assert!(a.powering_off());
-    assert!(StateRing::new(d.path(), Core::Mgba, "Emerald")
-        .read_resume()
-        .unwrap()
-        .is_some());
+    assert!(
+        StateRing::new(d.path(), Core::Mgba, slot_store::System::Gba, "Emerald")
+            .read_resume()
+            .unwrap()
+            .is_some()
+    );
 }
 
 /// THE INVARIANT. If `status` turns out to be unpopulated on the SP — and on this PMIC
@@ -265,10 +275,12 @@ fn an_unknown_charge_state_powers_off_exactly_as_before() {
     let mut a = app_playing_in(d.path(), "Emerald");
     a.on_battery(at(3, Charge::Unknown));
     assert!(a.powering_off());
-    assert!(StateRing::new(d.path(), Core::Mgba, "Emerald")
-        .read_resume()
-        .unwrap()
-        .is_some());
+    assert!(
+        StateRing::new(d.path(), Core::Mgba, slot_store::System::Gba, "Emerald")
+            .read_resume()
+            .unwrap()
+            .is_some()
+    );
 }
 
 /// The case band's left shelf used to sit blank for the first ten seconds of every boot,

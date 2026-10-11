@@ -9,7 +9,7 @@ use slot_store::{Cart, Core};
 
 use crate::art;
 use crate::cart::{size_for, CartFace, CART_H, CART_W};
-use crate::shelf::foot_y;
+use crate::shelf::{foot_y, CENTER_SCALE};
 use crate::shell::shell_for;
 use crate::slot_chrome::ease;
 use crate::text;
@@ -179,7 +179,7 @@ const SOCKET_SVG: &str = include_str!("../assets/socket.svg");
 const CHIP_SVG: &str = include_str!("../assets/chip.svg");
 
 /// Where the open cart rests.
-pub const BOARD_X: f32 = 174.0;
+pub const BOARD_X: f32 = (OUT_W as f32 - BOARD_W as f32) / 2.0;
 pub const BOARD_Y: f32 = 150.0;
 
 /// Transparent border on every face that is drawn turned. A turned quad's own edge is not
@@ -231,7 +231,7 @@ const SOCKET_INK: [u8; 3] = [0xee, 0xf5, 0xe6];
 const CHIP_INK: [u8; 3] = [0xf2, 0xf2, 0xf2];
 
 const LID_REST: Placed = Placed {
-    x: 288.0,
+    x: (OUT_W as f32 - 144.0) / 2.0,
     y: 30.0,
     w: 144.0,
     h: 81.0,
@@ -251,11 +251,13 @@ pub fn shelf_cart() -> Placed {
     // The core picker opens the Advance cart: a Game Boy or Game Boy Color cart has the one
     // core and nothing to choose, so this view is never reached for one.
     let size = size_for(slot_store::System::Gba);
+    let w = size.w as f32 * CENTER_SCALE;
+    let h = size.h as f32 * CENTER_SCALE;
     Placed {
-        x: (OUT_W - size.w) as f32 / 2.0,
-        y: foot_y(size) - size.h as f32,
-        w: size.w as f32,
-        h: size.h as f32,
+        x: (OUT_W as f32 - w) / 2.0,
+        y: foot_y(size) - h,
+        w,
+        h,
     }
 }
 
@@ -274,7 +276,7 @@ pub fn board_at(progress: f32) -> Placed {
 pub fn lid_at(progress: f32) -> (Placed, f32) {
     let shelf = shelf_cart();
     let slid = Placed {
-        y: shelf.y - SLIDE_UP * slide_of(progress),
+        y: shelf.y - SLIDE_UP * CENTER_SCALE * slide_of(progress),
         ..shelf
     };
     let lift = lift_of(progress);

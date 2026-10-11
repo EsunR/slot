@@ -4,7 +4,7 @@ use tempfile::tempdir;
 #[test]
 fn ring_evicts_the_oldest_beyond_ten() {
     let d = tempdir().unwrap();
-    let r = StateRing::new(d.path(), Core::Mgba, "Emerald");
+    let r = StateRing::new(d.path(), Core::Mgba, slot_store::System::Gba, "Emerald");
     for i in 0..14 {
         r.push(&[i as u8; 64], b"png", &format!("2026-08-09_00-00-{i:02}"))
             .unwrap();
@@ -13,7 +13,7 @@ fn ring_evicts_the_oldest_beyond_ten() {
     assert_eq!(l.len(), RING_MAX);
     assert_eq!(l[0].stamp, "2026-08-09_00-00-13");
     assert_eq!(l[9].stamp, "2026-08-09_00-00-04");
-    let orphans = std::fs::read_dir(d.path().join("States/mgba/Emerald"))
+    let orphans = std::fs::read_dir(d.path().join("States/mgba/GBA/Emerald"))
         .unwrap()
         .count();
     assert_eq!(orphans, RING_MAX * 2, "evicted thumbnails were not deleted");
@@ -22,7 +22,7 @@ fn ring_evicts_the_oldest_beyond_ten() {
 #[test]
 fn resume_is_not_part_of_the_ring() {
     let d = tempdir().unwrap();
-    let r = StateRing::new(d.path(), Core::Mgba, "Emerald");
+    let r = StateRing::new(d.path(), Core::Mgba, slot_store::System::Gba, "Emerald");
     for i in 0..12 {
         r.write_resume(&[i; 8]).unwrap();
     }
@@ -36,7 +36,12 @@ fn resume_is_not_part_of_the_ring() {
 #[test]
 fn a_cart_with_no_saves_lists_empty_rather_than_erroring() {
     let d = tempdir().unwrap();
-    let r = StateRing::new(d.path(), Core::Mgba, "Never Played");
+    let r = StateRing::new(
+        d.path(),
+        Core::Mgba,
+        slot_store::System::Gba,
+        "Never Played",
+    );
     assert!(r.list().unwrap().is_empty());
     assert!(r.read_resume().unwrap().is_none());
 }
@@ -44,7 +49,7 @@ fn a_cart_with_no_saves_lists_empty_rather_than_erroring() {
 #[test]
 fn eviction_is_by_stamp_not_by_write_order() {
     let d = tempdir().unwrap();
-    let r = StateRing::new(d.path(), Core::Mgba, "Emerald");
+    let r = StateRing::new(d.path(), Core::Mgba, slot_store::System::Gba, "Emerald");
     for i in [9, 3, 7, 1, 5, 11, 0, 8, 2, 10, 6, 4] {
         r.push(&[i as u8; 8], b"png", &format!("2026-08-09_00-00-{i:02}"))
             .unwrap();
@@ -58,9 +63,9 @@ fn eviction_is_by_stamp_not_by_write_order() {
 #[test]
 fn files_that_are_not_stamped_states_are_neither_listed_nor_evicted() {
     let d = tempdir().unwrap();
-    let r = StateRing::new(d.path(), Core::Mgba, "Emerald");
+    let r = StateRing::new(d.path(), Core::Mgba, slot_store::System::Gba, "Emerald");
     r.push(&[1u8; 8], b"png", "2026-08-09_00-00-01").unwrap();
-    let dir = d.path().join("States/mgba/Emerald");
+    let dir = d.path().join("States/mgba/GBA/Emerald");
     let strays = [
         dir.join("2026-08-09_09-09-09.png"),
         dir.join("notes.txt"),
@@ -88,7 +93,7 @@ fn files_that_are_not_stamped_states_are_neither_listed_nor_evicted() {
 #[test]
 fn read_pairs_the_state_with_its_thumbnail() {
     let d = tempdir().unwrap();
-    let r = StateRing::new(d.path(), Core::Mgba, "Emerald");
+    let r = StateRing::new(d.path(), Core::Mgba, slot_store::System::Gba, "Emerald");
     r.push(&[1u8; 8], b"first", "2026-08-09_00-00-01").unwrap();
     r.push(&[2u8; 8], b"second", "2026-08-09_00-00-02").unwrap();
     let (state, thumb) = r.read("2026-08-09_00-00-01").unwrap();
@@ -101,9 +106,13 @@ fn read_pairs_the_state_with_its_thumbnail() {
 #[test]
 fn read_of_an_entry_with_no_thumbnail_is_the_state_and_nothing_else() {
     let d = tempdir().unwrap();
-    let r = StateRing::new(d.path(), Core::Mgba, "Emerald");
+    let r = StateRing::new(d.path(), Core::Mgba, slot_store::System::Gba, "Emerald");
     r.push(&[1u8; 8], b"png", "2026-08-09_00-00-01").unwrap();
-    std::fs::remove_file(d.path().join("States/mgba/Emerald/2026-08-09_00-00-01.png")).unwrap();
+    std::fs::remove_file(
+        d.path()
+            .join("States/mgba/GBA/Emerald/2026-08-09_00-00-01.png"),
+    )
+    .unwrap();
     let (state, thumb) = r.read("2026-08-09_00-00-01").unwrap();
     assert_eq!(state, [1u8; 8]);
     assert!(thumb.is_empty());
@@ -114,12 +123,12 @@ fn read_of_an_entry_with_no_thumbnail_is_the_state_and_nothing_else() {
 #[test]
 fn remove_takes_the_thumbnail_with_the_state() {
     let d = tempdir().unwrap();
-    let r = StateRing::new(d.path(), Core::Mgba, "Emerald");
+    let r = StateRing::new(d.path(), Core::Mgba, slot_store::System::Gba, "Emerald");
     r.push(&[1u8; 8], b"png", "2026-08-09_00-00-01").unwrap();
     r.remove("2026-08-09_00-00-01").unwrap();
     assert!(r.list().unwrap().is_empty());
     assert_eq!(
-        std::fs::read_dir(d.path().join("States/mgba/Emerald"))
+        std::fs::read_dir(d.path().join("States/mgba/GBA/Emerald"))
             .unwrap()
             .count(),
         0
@@ -131,7 +140,7 @@ fn remove_takes_the_thumbnail_with_the_state() {
 #[test]
 fn remove_refuses_anything_that_is_not_a_stamp() {
     let d = tempdir().unwrap();
-    let r = StateRing::new(d.path(), Core::Mgba, "Emerald");
+    let r = StateRing::new(d.path(), Core::Mgba, slot_store::System::Gba, "Emerald");
     r.write_resume(&[7u8; 8]).unwrap();
     assert!(r.remove("resume").is_err());
     assert!(r.read("resume").is_err());
@@ -143,9 +152,9 @@ fn remove_refuses_anything_that_is_not_a_stamp() {
 #[test]
 fn a_sidecar_is_not_listed_as_a_state() {
     let d = tempdir().unwrap();
-    let r = StateRing::new(d.path(), Core::Mgba, "Emerald");
+    let r = StateRing::new(d.path(), Core::Mgba, slot_store::System::Gba, "Emerald");
     r.push(b"state", b"png", "2026-08-09_00-00-01").unwrap();
-    let dir = d.path().join("States/mgba/Emerald");
+    let dir = d.path().join("States/mgba/GBA/Emerald");
     std::fs::write(dir.join("._2026-08-09_00-00-01.state"), b"sidecar").unwrap();
     let l = r.list().unwrap();
     assert_eq!(l.len(), 1, "a sidecar was listed as a save state");
@@ -155,8 +164,8 @@ fn a_sidecar_is_not_listed_as_a_state() {
 #[test]
 fn each_core_keeps_its_own_states() {
     let d = tempdir().unwrap();
-    let mgba = StateRing::new(d.path(), Core::Mgba, "Emerald");
-    let gpsp = StateRing::new(d.path(), Core::Gpsp, "Emerald");
+    let mgba = StateRing::new(d.path(), Core::Mgba, slot_store::System::Gba, "Emerald");
+    let gpsp = StateRing::new(d.path(), Core::Gpsp, slot_store::System::Gba, "Emerald");
 
     mgba.push(&[1u8; 64], b"png", "2026-08-21_00-00-01")
         .unwrap();
@@ -167,18 +176,20 @@ fn each_core_keeps_its_own_states() {
         0,
         "a save state is not portable between cores and must not be offered as if it were"
     );
-    assert!(d.path().join("States/mgba/Emerald").is_dir());
+    assert!(d.path().join("States/mgba/GBA/Emerald").is_dir());
     assert!(!d.path().join("States/Emerald").exists());
 }
 
 #[test]
 fn resume_is_core_private_too() {
     let d = tempdir().unwrap();
-    StateRing::new(d.path(), Core::Mgba, "Emerald")
+    StateRing::new(d.path(), Core::Mgba, slot_store::System::Gba, "Emerald")
         .write_resume(&[9u8; 16])
         .unwrap();
-    assert!(StateRing::new(d.path(), Core::Gpsp, "Emerald")
-        .read_resume()
-        .unwrap()
-        .is_none());
+    assert!(
+        StateRing::new(d.path(), Core::Gpsp, slot_store::System::Gba, "Emerald")
+            .read_resume()
+            .unwrap()
+            .is_none()
+    );
 }

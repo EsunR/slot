@@ -491,20 +491,72 @@ pub fn cheats(root: &Path, stem: &str) -> Vec<CheatEntry> {
 /// typo in a config file.
 pub fn remap(root: &Path) -> Option<Remap> {
     let text = std::fs::read_to_string(root.join("System/remap.txt")).ok()?;
-    let mut r = Remap::identity();
+    Some(parse_remap(&text, Remap::identity()))
+}
+
+/// A game's layout inherits the card default; its file overrides individual physical keys.
+pub fn game_remap(root: &Path, system: System, stem: &str) -> Remap {
+    let default = remap(root).unwrap_or_default();
+    let Ok(path) = game_remap_path(root, system, stem) else {
+        return default;
+    };
+    std::fs::read_to_string(path)
+        .map(|text| parse_remap(&text, default))
+        .unwrap_or(default)
+}
+
+fn game_remap_path(root: &Path, system: System, stem: &str) -> std::io::Result<PathBuf> {
+    if stem.is_empty() || stem == "." || stem == ".." || stem.contains(['/', '\\']) {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "invalid ROM stem",
+        ));
+    }
+    Ok(root
+        .join("System/Remaps")
+        .join(system.dir_name())
+        .join(format!("{stem}.txt")))
+}
+
+pub fn write_game_remap(
+    root: &Path,
+    system: System,
+    stem: &str,
+    remap: Remap,
+) -> std::io::Result<()> {
+    let path = game_remap_path(root, system, stem)?;
+    std::fs::create_dir_all(path.parent().unwrap())?;
+    let text: String = remap
+        .entries()
+        .map(|(phys, target)| format!("{phys:?} = {target:?}\n"))
+        .collect();
+    slot_store::atomic_write(&path, text.as_bytes())
+}
+
+/// Removing the override lets future changes to the card default reach this game too.
+pub fn reset_game_remap(root: &Path, system: System, stem: &str) -> std::io::Result<()> {
+    match std::fs::remove_file(game_remap_path(root, system, stem)?) {
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        result => result,
+    }
+}
+
+fn parse_remap(text: &str, mut r: Remap) -> Remap {
     for line in text.lines() {
         let line = line.split('#').next().unwrap_or("").trim();
         if line.is_empty() {
             continue;
         }
-        let (phys, tgt) = line.split_once('=')?;
+        let Some((phys, tgt)) = line.split_once('=') else {
+            continue;
+        };
         let (phys, tgt) = (phys.trim(), tgt.trim());
         let (Some(phys), Some(tgt)) = (btn_by_name(phys), btn_by_name(tgt)) else {
             continue;
         };
         r.set(phys, tgt);
     }
-    Some(r)
+    r
 }
 
 /// Case-insensitive button name to `Btn`. Only the names a config file would spell are accepted;

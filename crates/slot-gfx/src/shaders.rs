@@ -61,13 +61,17 @@ void main() {
 }
 "#;
 
-/// `u_src` is the source size in pixels, which is also the number of times the 3x3 mask
-/// tiles across the target: one RGB triad per source pixel, exactly.
+/// `u_src` is the source size for the GB/GBC grid. The aperture mask uses
+/// `u_mask_tiles`, derived from the physical viewport so its cells stay 3x3
+/// output pixels when GBA is fitted at a fractional scale.
 pub const GAME_FRAG: &str = r#"
 precision mediump float;
 uniform sampler2D u_game;
 uniform sampler2D u_mask;
 uniform vec2 u_src;
+// Number of physical 3-pixel cells across the viewport. This differs from u_src
+// when a source frame is fitted at a fractional scale (RG35XXSP GBA).
+uniform vec2 u_mask_tiles;
 uniform float u_bright;
 uniform mat3 u_cc;
 // 色彩校正的黑点：在矩阵之后加上去（同一空间）。饱和度/单色背光那一类用不上它（恒 0），
@@ -139,7 +143,7 @@ void main() {
         }
     }
     // 面板遮罩照旧在编码空间乘（顺序与旧版等价：矩阵与遮罩都是乘法，可交换）。
-    vec3 rgb = c * texture2D(u_mask, v_uv * u_src).rgb;
+    vec3 rgb = c * texture2D(u_mask, v_uv * u_mask_tiles).rgb;
     FRAG_COLOR = vec4(rgb * u_bright, 1.0);
 }
 "#;

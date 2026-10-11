@@ -1,3 +1,4 @@
+use slot_gfx::OUT_W;
 use slot_store::{Cart, Core};
 use slot_ui::{
     board_at, board_face, chip_face, chip_shadow_face, lid_at, lift_of, on_board, padded,
@@ -149,17 +150,17 @@ fn the_open_cart_starts_as_the_shelf_cart_and_lands_where_the_mockup_has_it() {
     assert_eq!(
         shelf_cart(),
         Placed {
-            x: 240.0,
-            y: 172.5,
-            w: 240.0,
-            h: 135.0
+            x: (OUT_W as f32 - 360.0) / 2.0,
+            y: 105.0,
+            w: 360.0,
+            h: 202.5,
         }
     );
     assert_eq!(board_at(0.0), shelf_cart());
     assert_eq!(
         board_at(1.0),
         Placed {
-            x: 174.0,
+            x: (OUT_W as f32 - 372.0) / 2.0,
             y: 150.0,
             w: 372.0,
             h: 209.0
@@ -169,13 +170,21 @@ fn the_open_cart_starts_as_the_shelf_cart_and_lands_where_the_mockup_has_it() {
 }
 
 #[test]
+fn the_open_cart_stays_centred_through_the_zoom() {
+    for progress in [0.0, SLIDE_SHARE, 0.5, 0.75, 1.0] {
+        let board = board_at(progress);
+        assert_eq!(board.x + board.w / 2.0, OUT_W as f32 / 2.0);
+    }
+}
+
+#[test]
 fn the_lid_leaves_level_and_rests_turned() {
     assert_eq!(lid_at(0.0), (shelf_cart(), 0.0));
     let (rest, turn) = lid_at(1.0);
     assert_eq!(
         rest,
         Placed {
-            x: 288.0,
+            x: (OUT_W as f32 - 144.0) / 2.0,
             y: 30.0,
             w: 144.0,
             h: 81.0
@@ -214,7 +223,7 @@ fn the_front_slides_up_a_third_before_it_lifts() {
     assert_eq!(
         slid,
         Placed {
-            y: shelf.y - SLIDE_UP,
+            y: shelf.y - SLIDE_UP * 1.5,
             ..shelf
         }
     );
@@ -234,8 +243,14 @@ fn the_lift_starts_where_the_slide_ends() {
 #[test]
 fn board_units_land_on_the_panel_at_one_and_a_half_times() {
     let board = board_at(1.0);
-    assert_eq!(on_board(board, 0.0, 0.0), (174.0, 150.0));
-    assert_eq!(on_board(board, 240.0, 135.0), (546.0, 359.0));
+    assert_eq!(
+        on_board(board, 0.0, 0.0),
+        ((OUT_W as f32 - 372.0) / 2.0, 150.0)
+    );
+    assert_eq!(
+        on_board(board, 240.0, 135.0),
+        ((OUT_W as f32 + 372.0) / 2.0, 359.0)
+    );
 }
 
 /// An empty socket names the core it is for, quietly: the chip's own name is the loud one.

@@ -250,6 +250,9 @@ impl Session {
         // the `apply`, because either of those two presses is the one that moves the answer.
         let menu = self.overlaid();
         self.bridge_link(|app| app.apply(action));
+        if let Some(remap) = self.app.take_remap_changed() {
+            self.pad.set_remap(remap);
+        }
         // A row toggled inside the cheat table set a flag the table itself cannot act on, because
         // it has no reach to the emulator. Push the list now that `apply` has run.
         if self.app.take_cheats_dirty() {
@@ -528,6 +531,9 @@ impl Session {
         else {
             return;
         };
+        let remap = crate::root::game_remap(&self.root, system, stem);
+        self.pad.set_remap(remap);
+        self.app.set_pad_remap(remap);
         // Resolved once, and only here: this is which dylib gets opened, which `States/<core>/`
         // directory the resume lookup below reads from, and — via `set_core` — every later
         // flush, eject and polaroid read for this cart too. Deriving it twice let a `gpsp` cart
@@ -574,20 +580,19 @@ impl Session {
         // want. SELECT+A while the table is open flips the master `cheats_on` and re-pushes.
         self.app.set_cheats(crate::root::cheats(&self.root, stem));
         self.push_cheats();
-        // The screen-overlay set for the cart's system (`Overlay/gb*.png` / `gbc*.png`), with
-        // the persisted rotation index applied: slot 0 is GB, 1 is GBC. GBA has no overlay set
-        // at all, so it clears whatever the previous cart left on screen — a Game Boy's model
-        // art (or a GBC's frame) must not bleed through into a GBA game, and there is no key on
-        // this machine that would turn it off. The frontend mints the GL texture when it next
-        // sees `overlay_dirty`.
+        // The screen-overlay set for the cart's system, with the persisted rotation index
+        // applied to GB and GBC. On RG35XXSP, GBA uses the first `Overlay/gba*.png` as a fixed
+        // bezel; SELECT+X remains the GBA LCD mask control. The frontend mints its GL texture
+        // when it next sees `overlay_dirty`.
         let (which, slot) = match system {
             System::Gb => ("gb", 0),
             System::Gbc => ("gbc", 1),
-            System::Gba => ("", 0),
+            System::Gba if cfg!(feature = "rg35xxsp") => ("gba", 2),
+            System::Gba => ("", 2),
         };
         if which.is_empty() {
             // No overlay set for this system: drop the previous cart's overlay.
-            eprintln!("slot: overlay: GBA has no set — clearing");
+            eprintln!("slot: overlay: no set for this system — clearing");
             self.app.clear_overlay_set();
         } else {
             let list = crate::root::overlay_files(&self.root, which);
@@ -613,7 +618,11 @@ impl Session {
                     names.join(", ")
                 }
             );
-            self.app.set_overlay_set(list, slot);
+            if slot == 2 {
+                self.app.set_gba_overlay(list);
+            } else {
+                self.app.set_overlay_set(list, slot);
+            }
         }
     }
 

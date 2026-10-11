@@ -1,12 +1,24 @@
+#[cfg(target_os = "linux")]
 mod device;
 mod motor;
 mod power;
 mod sim;
 
-pub use device::{has_bit, motor_change, rumble_node, DevicePlatform};
+#[cfg(target_os = "linux")]
+pub use device::{motor_change, rumble_node, DevicePlatform};
 pub use motor::Motor;
 pub use power::Power;
 pub use sim::SimPlatform;
+
+/// sysfs lists capability words most significant first, so bit zero is in the last word.
+pub fn has_bit(mask: &str, bit: u16) -> bool {
+    let words: Vec<&str> = mask.split_whitespace().collect();
+    let from_end = usize::from(bit) / 64;
+    let Some(word) = words.len().checked_sub(from_end + 1).map(|i| words[i]) else {
+        return false;
+    };
+    u64::from_str_radix(word, 16).is_ok_and(|w| w >> (bit % 64) & 1 == 1)
+}
 
 use std::path::Path;
 use std::time::Duration;

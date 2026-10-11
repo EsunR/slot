@@ -20,9 +20,11 @@ use slot_ui::{
 
 use crate::audio::{Profile, Sfx};
 use crate::core_picker::{Chip, CorePicker, Outcome, Press};
+use crate::input::Remap;
 use crate::link_radio::LinkRole;
 use crate::link_start::{link_port, LinkFail, LinkProgress, LinkStarter, LinkStep};
 use crate::persist::{self, Snapshot};
+use crate::remap_menu::{Outcome as RemapOutcome, RemapMenu};
 
 /// A floor, not a delay. The animation is where the core load hides, so a slow load
 /// extends it and a load that is already done still waits it out.
@@ -185,24 +187,25 @@ pub enum GameMenu {
     Rows(usize),
     /// Host or Join.
     Link(usize),
+    /// Per-game layout editor, with an uncommitted draft.
+    Remap,
     /// The worker is running, and `LinkStep` is what the screen says while it does.
     Working(LinkStep),
     /// It did not work, and this is which one. B returns to the game.
     Failed(LinkFail),
 }
 
-/// A row of the in-game menu. One today — the menu exists for it — and an enum rather than a
-/// bare index so a second row is a variant and a face rather than a set of numbers to keep
-/// in agreement.
+/// A row of the in-game menu. Fixed upload order, filtered for the current core.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum GameRow {
     Link,
+    Remap,
 }
 
 impl GameRow {
     /// Every row, once, in the order their faces are uploaded. Which of them a given cart
     /// actually shows is `App::game_rows`.
-    pub const ALL: [GameRow; 1] = [GameRow::Link];
+    pub const ALL: [GameRow; 2] = [GameRow::Link, GameRow::Remap];
 
     /// Position in `ALL`, which is the order the faces are in.
     pub fn index(self) -> usize {
@@ -212,6 +215,7 @@ impl GameRow {
     pub fn text(self) -> &'static str {
         match self {
             GameRow::Link => lang::LINK_ROW,
+            GameRow::Remap => lang::REMAP_ROW,
         }
     }
 }
@@ -1058,6 +1062,11 @@ pub struct App {
     /// One per `GameRow::ALL`, in that order. Every row is uploaded whether or not this
     /// cart shows it — the faces never change, and which rows exist does.
     game_menu_faces: Vec<(TexId, u32, u32)>,
+    pad_remap: Remap,
+    remap_changed: Option<Remap>,
+    remap_editor: Option<RemapMenu>,
+    remap_face_lines: Vec<String>,
+    remap_faces: Vec<(TexId, u32, u32)>,
     /// One per `LinkRow::ALL`, in that order.
     link_menu_faces: Vec<(TexId, u32, u32)>,
     /// One per `LinkStep::ALL`, and one per `LinkFail::SHOWN`, in those orders. A sentence
@@ -1240,11 +1249,11 @@ pub struct App {
     overlay_dirty: bool,
     /// Every overlay PNG the seated cart's system offers, in rotation order, and which one is
     /// up. Built on insert (`Session::spawn_core`) from `Overlay/`; `overlay_next` cycles it.
-    /// Empty for GBA, which has no overlay set.
+    /// On RG35XXSP, GBA holds its one fixed bezel here without joining the GB/GBC rotation.
     overlay_list: Vec<crate::root::OverlayFile>,
-    /// Which system `overlay_index` counts in: 0 for GB, 1 for GBC. Kept because a Game Boy's
-    /// index counts its three models before the card's own overlays and a Game Boy Color's does
-    /// not, so the same number means different things on the two shelves.
+    /// Which system `overlay_index` counts in: 0 for GB, 1 for GBC, 2 for RG35XXSP GBA.
+    /// A Game Boy's index counts its three models before the card's own overlays; GBA has
+    /// one fixed image outside the rotating GB/GBC choices.
     overlay_slot: usize,
     overlay_index: usize,
     /// Which overlay each system last showed, GB then GBC, persisted to `System/overlay.txt` so
@@ -1266,6 +1275,30 @@ pub struct App {
     /// The system-shelf swap in flight, if any. While it is `Some` the app takes no input.
     shelf_switch: Option<ShelfSwitch>,
     powering_off: bool,
+}
+
+/// Legacy GB/GBC art was authored for a 720x480 panel with a centred 480x432
+/// game opening. The RG35XXSP has the same game opening, shifted left by 40 px.
+/// Crop 40 px from either side so the artwork retains its pixel size and its
+/// transparent opening stays aligned with the game. Other image sizes keep the
+/// existing full-panel scaling behaviour, including the native 640x480 GBA art.
+fn fit_legacy_overlay(pixels: (Vec<u8>, u32, u32)) -> (Vec<u8>, u32, u32) {
+    #[cfg(feature = "rg35xxsp")]
+    {
+        let (rgba, w, h) = pixels;
+        if (w, h) == (720, 480) {
+            let mut cropped = Vec::with_capacity((640 * 480 * 4) as usize);
+            for row in rgba.chunks_exact((720 * 4) as usize) {
+                cropped.extend_from_slice(&row[(40 * 4)..(680 * 4)]);
+            }
+            return (cropped, 640, 480);
+        }
+        (rgba, w, h)
+    }
+    #[cfg(not(feature = "rg35xxsp"))]
+    {
+        pixels
+    }
 }
 
 impl App {
@@ -1308,6 +1341,11 @@ impl App {
             core_legend_faces: Vec::new(),
             game_menu: None,
             game_menu_faces: Vec::new(),
+            pad_remap: Remap::default(),
+            remap_changed: None,
+            remap_editor: None,
+            remap_face_lines: Vec::new(),
+            remap_faces: Vec::new(),
             link_menu_faces: Vec::new(),
             link_step_faces: Vec::new(),
             link_fail_faces: Vec::new(),
@@ -1984,21 +2022,30 @@ impl App {
         self.shelf.face_of(i)
     }
 
-    /// Drop the overlay the previous cart left on screen, for a cart whose system has no overlay
-    /// set (GBA) or a card carrying no art for its system. `overlay_pixels` becomes `None` and
+    /// Drop the overlay the previous cart left on screen. `overlay_pixels` becomes `None` and
     /// `overlay_dirty` is set, so the frontend releases the GL texture and the built-in look
-    /// stands. Used in place of `set_overlay_set` for GBA: GBA would otherwise be read as
-    /// `slot` 0 (GB) and re-decode a Game Boy model overlay onto a GBA game.
+    /// stands.
     pub(crate) fn clear_overlay_set(&mut self) {
+        self.overlay_list.clear();
         self.overlay_pixels = None;
         self.overlay_dirty = true;
+    }
+
+    /// RG35XXSP's fixed GBA bezel. The GBA SELECT+X chord still cycles LCD masks, so this
+    /// takes only the first GBA image and keeps it outside the GB/GBC rotation slots.
+    pub(crate) fn set_gba_overlay(&mut self, mut list: Vec<crate::root::OverlayFile>) {
+        list.truncate(1);
+        self.overlay_list = list;
+        self.overlay_slot = 2;
+        self.overlay_index = 0;
+        self.refresh_overlay_pixels();
     }
 
     /// Hand the seated cart's overlay set to the app, from `Session::spawn_core`: every
     /// `Overlay/<sys>.png` / `<sys>-NN.png` for the cart's system, in rotation order (`slot` 0
     /// for GB, 1 for GBC), with the persisted index for that system applied. The chosen file is
     /// decoded here and `overlay_dirty` is set so the frontend re-mints the GL texture once.
-    /// GBA has no overlay set at all and is routed through `clear_overlay_set` instead.
+    /// RG35XXSP's GBA bezel is loaded through `set_gba_overlay` instead.
     pub(crate) fn set_overlay_set(&mut self, list: Vec<crate::root::OverlayFile>, slot: usize) {
         self.overlay_list = list;
         let slot = slot.min(1);
@@ -2064,6 +2111,9 @@ impl App {
                 .ordinary_overlay_at()
                 .and_then(|overlay| slot_ui::decode_rgba(&overlay.path)),
         };
+        if self.overlay_slot != 2 {
+            self.overlay_pixels = self.overlay_pixels.take().map(fit_legacy_overlay);
+        }
         self.overlay_dirty = true;
     }
 
@@ -2591,6 +2641,39 @@ impl App {
             Some(GameMenu::Link(_)) => LinkRow::ALL.iter().map(|r| r.text()).collect(),
             _ => Vec::new(),
         }
+    }
+
+    pub fn set_pad_remap(&mut self, remap: Remap) {
+        self.pad_remap = remap;
+        self.remap_changed = None;
+    }
+
+    pub fn take_remap_changed(&mut self) -> Option<Remap> {
+        self.remap_changed.take()
+    }
+
+    pub fn remap_menu_lines(&self) -> Vec<String> {
+        if self.game_menu == Some(GameMenu::Remap) {
+            self.remap_editor
+                .as_ref()
+                .map(RemapMenu::lines)
+                .unwrap_or_default()
+        } else {
+            Vec::new()
+        }
+    }
+
+    pub(crate) fn remap_face_lines(&self) -> &[String] {
+        &self.remap_face_lines
+    }
+
+    pub fn set_remap_faces(
+        &mut self,
+        lines: Vec<String>,
+        faces: Vec<(TexId, u32, u32)>,
+    ) -> Vec<(TexId, u32, u32)> {
+        self.remap_face_lines = lines;
+        std::mem::replace(&mut self.remap_faces, faces)
     }
 
     /// The wire a link that just came up runs over, handed on exactly once. `App` never
@@ -4128,6 +4211,10 @@ impl App {
         let (faces, index) = match menu {
             GameMenu::Rows(index) => (self.game_row_faces(), Some(index)),
             GameMenu::Link(index) => (self.link_menu_faces.clone(), Some(index)),
+            GameMenu::Remap => (
+                self.remap_faces.clone(),
+                self.remap_editor.as_ref().map(RemapMenu::selected_face),
+            ),
             GameMenu::Working(step) => (one(&self.link_step_faces, Some(step.index())), None),
             GameMenu::Failed(fail) => (one(&self.link_fail_faces, fail.shown()), None),
         };
@@ -5165,6 +5252,7 @@ impl App {
                 // steps away on the shelf — and a row that says so is a row that teaches a
                 // dead end.
                 GameRow::Link => self.core == Core::Gpsp,
+                GameRow::Remap => true,
             })
             .collect()
     }
@@ -5193,9 +5281,7 @@ impl App {
         if self.link_active() {
             return self.refuse();
         }
-        // An empty panel over a paused game is worse than no panel at all. Today that means
-        // an mGBA cart raises nothing, Link being the only row there is; when a second row
-        // lands this stops being about the link at all and stays exactly as true.
+        // An empty panel over a paused game is worse than no panel at all.
         if self.game_rows().is_empty() {
             return;
         }
@@ -5222,6 +5308,22 @@ impl App {
                     }
                     Action::GbaDown(Btn::A) => match rows.get(row) {
                         Some(GameRow::Link) => self.game_menu = Some(GameMenu::Link(0)),
+                        Some(GameRow::Remap) => {
+                            // Load here as well as on core spawn, so an externally edited file
+                            // is reflected when the menu is reopened.
+                            let remap = match (
+                                &self.root,
+                                self.seated(),
+                                self.seated().and_then(|c| self.system_of(c)),
+                            ) {
+                                (Some(root), Some(stem), Some(system)) => {
+                                    crate::root::game_remap(root, system, stem)
+                                }
+                                _ => self.pad_remap,
+                            };
+                            self.remap_editor = Some(RemapMenu::new(remap));
+                            self.game_menu = Some(GameMenu::Remap);
+                        }
                         None => {}
                     },
                     // The chord closes it as well as opening it, so the gesture that got
@@ -5230,6 +5332,7 @@ impl App {
                     _ => {}
                 }
             }
+            GameMenu::Remap => self.remap_menu_input(action),
             GameMenu::Link(row) => {
                 let last = LinkRow::ALL.len();
                 match action {
@@ -5290,14 +5393,63 @@ impl App {
         self.game_menu = Some(GameMenu::Working(LinkStep::Radio));
     }
 
-    /// Ends the overlay and anything it had running.
-    ///
-    /// `LinkStarter` has no `Drop`, so a starter dropped mid-wait keeps working: a host
-    /// dropped while waiting leaves its access point up for up to thirty seconds with
-    /// nothing on the other end of it. Every path that ends the overlay comes through here,
-    /// including the three that never touched it — a shut lid, a cart coming out and a power
-    /// off all end the game this was drawn over.
+    /// Commit only after the card write succeeds; a failed write keeps the draft visible.
+    fn remap_menu_input(&mut self, action: Action) {
+        let Some(editor) = &mut self.remap_editor else {
+            return;
+        };
+        match editor.apply(action) {
+            RemapOutcome::Stay => {}
+            RemapOutcome::Back => {
+                self.remap_editor = None;
+                let row = self
+                    .game_rows()
+                    .iter()
+                    .position(|r| *r == GameRow::Remap)
+                    .unwrap_or(0);
+                self.game_menu = Some(GameMenu::Rows(row));
+            }
+            RemapOutcome::Close => self.close_game_menu(),
+            outcome @ (RemapOutcome::Save | RemapOutcome::Reset) => {
+                let draft = editor.draft;
+                let result = match (
+                    &self.root,
+                    self.seated(),
+                    self.seated().and_then(|c| self.system_of(c)),
+                ) {
+                    (Some(root), Some(stem), Some(system)) => {
+                        if matches!(outcome, RemapOutcome::Reset) {
+                            crate::root::reset_game_remap(root, system, stem)
+                                .map(|()| crate::root::remap(root).unwrap_or_default())
+                        } else {
+                            crate::root::write_game_remap(root, system, stem, draft).map(|()| draft)
+                        }
+                    }
+                    _ => Err(std::io::Error::new(
+                        std::io::ErrorKind::NotFound,
+                        "no game root",
+                    )),
+                };
+                match result {
+                    Ok(remap) => {
+                        self.pad_remap = remap;
+                        self.remap_changed = Some(remap);
+                        self.close_game_menu();
+                    }
+                    Err(e) => {
+                        eprintln!("slot: remap: {e}");
+                        if let Some(editor) = &mut self.remap_editor {
+                            editor.failed = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Ends the overlay and cancels any starter, including on lid close, eject and power off.
     fn close_game_menu(&mut self) {
+        self.remap_editor = None;
         self.game_menu = None;
         if let Some(mut starting) = self.starting.take() {
             starting.starter.cancel();
@@ -5934,5 +6086,28 @@ fn draw_menu_rows(
             tex,
             alpha: 1.0,
         });
+    }
+}
+
+#[cfg(all(test, feature = "rg35xxsp"))]
+mod overlay_resolution_tests {
+    use super::fit_legacy_overlay;
+
+    #[test]
+    fn crops_legacy_overlay_without_moving_its_game_opening() {
+        let mut source = vec![0_u8; 720 * 480 * 4];
+        // The old 480-pixel opening starts at x=120. On the new panel it must
+        // start at x=80, matching System::Gb::screen_base().
+        for y in 24..456 {
+            for x in 120..600 {
+                source[(y * 720 + x) * 4 + 3] = 255;
+            }
+        }
+        let (rgba, w, h) = fit_legacy_overlay((source, 720, 480));
+        assert_eq!((w, h), (640, 480));
+        assert_eq!(rgba[(24 * 640 + 79) * 4 + 3], 0);
+        assert_eq!(rgba[(24 * 640 + 80) * 4 + 3], 255);
+        assert_eq!(rgba[(24 * 640 + 559) * 4 + 3], 255);
+        assert_eq!(rgba[(24 * 640 + 560) * 4 + 3], 0);
     }
 }

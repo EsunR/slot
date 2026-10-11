@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use crate::{Battery, Charge, LedState, Platform};
+use crate::{has_bit, Battery, Charge, LedState, Platform};
 
 /// The top step. Levels are 0 to 19 everywhere above the trait; what that spans in the
 /// kernel's own units is whatever `max_brightness` says, which is 255 on some panels and
@@ -193,17 +193,6 @@ fn ran(what: &str, result: std::io::Result<std::process::ExitStatus>) {
         Ok(status) => eprintln!("slot: {what} {status}"),
         Err(e) => eprintln!("slot: {what}: {e}"),
     }
-}
-
-/// sysfs prints a capability bitmask as 64 bit words in hex, most significant first, so the
-/// last word holds bits 0 to 63 and an offset only comes out right counted from the end.
-pub fn has_bit(mask: &str, bit: u16) -> bool {
-    let words: Vec<&str> = mask.split_whitespace().collect();
-    let from_end = usize::from(bit) / 64;
-    let Some(word) = words.len().checked_sub(from_end + 1).map(|i| words[i]) else {
-        return false;
-    };
-    u64::from_str_radix(word, 16).is_ok_and(|w| w >> (bit % 64) & 1 == 1)
 }
 
 /// The event node whose driver says it can rumble, by name. Found the way the buttons are,

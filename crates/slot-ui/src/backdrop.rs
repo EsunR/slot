@@ -14,10 +14,13 @@ use crate::palette;
 /// screen. Drawing it rather than clearing to it costs one full screen quad and keeps the
 /// decision on this side of the crate boundary, where the mode lives.
 fn ground() -> [f32; 4] {
-    match palette::mode() {
-        palette::Mode::Dark => [0.0, 0.0, 0.0, 1.0],
-        palette::Mode::Light => [0.90, 0.89, 0.86, 1.0],
-    }
+    let c = palette::ground();
+    [
+        c[0] as f32 / 255.0,
+        c[1] as f32 / 255.0,
+        c[2] as f32 / 255.0,
+        1.0,
+    ]
 }
 
 /// Cover the whole panel, centre cropped. PNG only, as the labels are.

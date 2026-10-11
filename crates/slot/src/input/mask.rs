@@ -11,7 +11,7 @@ const BTN_COUNT: usize = 19;
 /// a single folded bit, so remapping two physical buttons onto the same game button still
 /// releases each correctly: releasing one clears only that physical key's contribution, not the
 /// bit the other (still held) key is also driving.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Remap {
     map: [Btn; BTN_COUNT],
 }
@@ -48,6 +48,14 @@ impl Remap {
     pub fn set(&mut self, phys: Btn, target: Btn) {
         self.map[phys as usize] = target;
     }
+
+    pub fn target(&self, phys: Btn) -> Btn {
+        self.map[phys as usize]
+    }
+
+    pub fn entries(&self) -> impl Iterator<Item = (Btn, Btn)> + '_ {
+        Remap::identity().map.into_iter().zip(self.map)
+    }
 }
 
 impl Default for Remap {
@@ -83,6 +91,12 @@ impl Pad {
             Action::GbaUp(b) => self.down[b as usize] = false,
             _ => {}
         }
+    }
+
+    /// Changing a layout must not carry held keys into the new one.
+    pub fn set_remap(&mut self, remap: Remap) {
+        self.clear();
+        self.remap = remap;
     }
 
     pub fn mask(&self) -> ButtonMask {

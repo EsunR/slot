@@ -1240,7 +1240,7 @@ fn the_highlighted_cart_becomes_the_lid_rather_than_a_second_cart() {
     );
 
     let (_, lid, turn) = turned_at(&out, f.lid).expect("no lid");
-    let want = grown(lid_at(0.0).0, TURN_PAD as f32);
+    let want = grown(lid_at(0.0).0, TURN_PAD as f32 * CENTER_SCALE);
     assert!(
         near(lid, [want.x, want.y, want.w, want.h]),
         "the lid starts at {lid:?}"
@@ -1258,10 +1258,10 @@ fn the_highlighted_cart_becomes_the_lid_rather_than_a_second_cart() {
     let shelf = shelf_cart();
     let want = grown(
         Placed {
-            y: shelf.y - SLIDE_UP * 0.5,
+            y: shelf.y - SLIDE_UP * CENTER_SCALE * 0.5,
             ..shelf
         },
-        TURN_PAD as f32,
+        TURN_PAD as f32 * CENTER_SCALE,
     );
     assert!(
         near(lid, [want.x, want.y, want.w, want.h]),
@@ -1460,7 +1460,7 @@ fn the_open_waits_on_the_shelf_for_its_faces() {
     app.set_core_board_faces(f.board, f.lid);
     app.update(0.016);
     let out = frame(&app);
-    let shelf = grown(shelf_cart(), TURN_PAD as f32);
+    let shelf = grown(shelf_cart(), TURN_PAD as f32 * CENTER_SCALE);
     let (_, lid, _) = turned_at(&out, f.lid).expect("no lid once the faces arrived");
     assert!(
         near(lid, [shelf.x, shelf.y, shelf.w, shelf.h]),

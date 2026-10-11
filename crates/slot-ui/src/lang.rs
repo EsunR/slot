@@ -53,6 +53,13 @@ mod words {
     pub const CORE_CHOOSE: &str = "Choose";
 
     pub const LINK_ROW: &str = "Link";
+    pub const REMAP_ROW: &str = "Button mapping";
+    pub const REMAP_NONE: &str = "Disabled";
+    pub const REMAP_SAVE: &str = "Save for this game";
+    pub const REMAP_RESET: &str = "Restore card defaults";
+    pub const REMAP_EDIT_HINT: &str = "UP/DOWN: Row  LEFT/RIGHT: Map";
+    pub const REMAP_BACK_HINT: &str = "A: Confirm  B: Cancel";
+    pub const REMAP_SAVE_FAILED: &str = "Save failed; A: Retry  B: Cancel";
     pub const LINK_HOST: &str = "Host";
     pub const LINK_JOIN: &str = "Join";
 
@@ -91,6 +98,13 @@ mod words {
     pub const CORE_CHOOSE: &str = "选择";
 
     pub const LINK_ROW: &str = "联机";
+    pub const REMAP_ROW: &str = "改键";
+    pub const REMAP_NONE: &str = "禁用";
+    pub const REMAP_SAVE: &str = "保存当前游戏配置";
+    pub const REMAP_RESET: &str = "恢复全局默认配置";
+    pub const REMAP_EDIT_HINT: &str = "上下：选择  左右：修改";
+    pub const REMAP_BACK_HINT: &str = "A：确认  B：取消";
+    pub const REMAP_SAVE_FAILED: &str = "保存失败  A：重试  B：取消";
     pub const LINK_HOST: &str = "主机";
     pub const LINK_JOIN: &str = "加入";
 

@@ -11,6 +11,8 @@ default = ["host"]
 # dependencies are also most of what makes a device build hard.
 host = ["dep:glutin", "dep:glutin-winit", "dep:winit", "dep:raw-window-handle"]
 device = []
+# Render the interface directly at the RG35XXSP panel's 640x480 resolution.
+rg35xxsp = []
 # Handle-by-index constructors that bypass the compositor, for tests that need to name a
 # texture without a live GL context. Left out of every consumer's `[dependencies]` so a
 # forged `TexId` can never reach the device build and silently alias a real texture.
